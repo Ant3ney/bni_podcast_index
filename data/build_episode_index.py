@@ -18,6 +18,7 @@ AUDIO_LINKS = ROOT / "audio_links.jsonl"
 EPISODE_COVERAGE = ROOT / "episode_coverage.csv"
 SUMMARY = ROOT / "summary.json"
 OUTPUT = ROOT / "episode_index.html"
+DEPLOY_OUTPUT = ROOT.parent / "index.html"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -153,15 +154,16 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
         url = str(entry["url"])
         kind = str(entry["kind"])
         row_text = f"{episode} {title} {date} {kind} {url}".lower()
+        date_html = html.escape(date) if date else '<span class="muted-placeholder">No date</span>'
         rows.append(
             "          <tr "
             f'data-search="{html.escape(row_text, quote=True)}" '
             f'data-kind="{html.escape(kind.lower(), quote=True)}">'
-            f'<td class="episode-number">{episode}</td>'
-            f'<td><a href="{html.escape(url, quote=True)}" target="_blank" '
+            f'<td class="episode-number" data-label="Episode">{episode}</td>'
+            f'<td class="title-cell" data-label="Name and Link"><a href="{html.escape(url, quote=True)}" target="_blank" '
             f'rel="noopener noreferrer">{html.escape(title)}</a></td>'
-            f'<td class="date-cell">{html.escape(date) if date else "&nbsp;"}</td>'
-            f'<td><span class="badge badge-{html.escape(kind.lower(), quote=True)}">{html.escape(kind)}</span></td>'
+            f'<td class="date-cell" data-label="Date">{date_html}</td>'
+            f'<td class="type-cell" data-label="Type"><span class="type-label type-{html.escape(kind.lower(), quote=True)}">{html.escape(kind)}</span></td>'
             "</tr>"
         )
 
@@ -172,6 +174,7 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BNI Podcast Episode Index</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
     :root {{
       color-scheme: light;
@@ -211,7 +214,7 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
 
     h1 {{
       margin: 0 0 10px;
-      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-size: 2.35rem;
       line-height: 1.1;
       letter-spacing: 0;
     }}
@@ -270,16 +273,16 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
     }}
 
     .table-wrap {{
-      overflow-x: auto;
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 8px;
+      overflow: hidden;
     }}
 
     table {{
       width: 100%;
-      min-width: 720px;
       border-collapse: collapse;
+      table-layout: fixed;
     }}
 
     thead {{
@@ -315,10 +318,18 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
       color: var(--accent-dark);
     }}
 
+    .title-cell {{
+      overflow-wrap: anywhere;
+    }}
+
     .date-cell {{
       width: 132px;
       color: var(--muted);
       white-space: nowrap;
+    }}
+
+    .type-cell {{
+      width: 92px;
     }}
 
     a {{
@@ -331,23 +342,24 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
       text-decoration: underline;
     }}
 
-    .badge {{
+    .type-label {{
       display: inline-block;
-      min-width: 54px;
-      border-radius: 999px;
-      padding: 3px 9px;
-      color: #fff;
-      font-size: 0.78rem;
+      color: var(--muted);
+      font-size: 0.84rem;
       font-weight: 800;
-      text-align: center;
+      line-height: 1.2;
     }}
 
-    .badge-page {{
-      background: var(--accent);
+    .type-page {{
+      color: var(--muted);
     }}
 
-    .badge-audio {{
-      background: var(--audio);
+    .type-audio {{
+      color: var(--audio);
+    }}
+
+    .muted-placeholder {{
+      color: #98a2af;
     }}
 
     .empty {{
@@ -364,21 +376,146 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
       font-size: 0.86rem;
     }}
 
-    @media (max-width: 640px) {{
+    @media (max-width: 820px) {{
       header {{
-        padding-top: 22px;
+        padding: 22px 0 20px;
       }}
 
       .inner {{
-        width: min(100% - 20px, 1120px);
+        width: min(100% - 24px, 1120px);
+      }}
+
+      h1 {{
+        font-size: 1.9rem;
+      }}
+
+      .summary {{
+        gap: 6px 12px;
+        font-size: 0.9rem;
       }}
 
       .toolbar {{
         grid-template-columns: 1fr;
+        gap: 8px;
       }}
 
       .visible-count {{
         padding-bottom: 0;
+      }}
+
+      .table-wrap {{
+        border: 0;
+        background: transparent;
+        overflow: visible;
+      }}
+
+      table,
+      thead,
+      tbody,
+      tr,
+      td {{
+        display: block;
+      }}
+
+      table {{
+        table-layout: auto;
+      }}
+
+      thead {{
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }}
+
+      tbody {{
+        display: grid;
+        gap: 10px;
+      }}
+
+      tbody tr {{
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 6px 12px;
+        padding: 12px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }}
+
+      tbody tr:hover {{
+        background: var(--surface);
+      }}
+
+      td {{
+        padding: 0;
+        border: 0;
+      }}
+
+      .episode-number {{
+        grid-row: span 3;
+        width: auto;
+        font-size: 1.08rem;
+      }}
+
+      .episode-number::before {{
+        content: "#";
+      }}
+
+      .title-cell {{
+        min-width: 0;
+      }}
+
+      .date-cell,
+      .type-cell {{
+        width: auto;
+        font-size: 0.88rem;
+      }}
+
+      .date-cell {{
+        white-space: normal;
+      }}
+
+      .date-cell::before,
+      .type-cell::before {{
+        content: attr(data-label) ": ";
+        color: var(--muted);
+        font-weight: 700;
+      }}
+
+      a {{
+        line-height: 1.3;
+      }}
+    }}
+
+    @media (max-width: 480px) {{
+      .inner {{
+        width: min(100% - 16px, 1120px);
+      }}
+
+      main {{
+        padding-top: 16px;
+      }}
+
+      h1 {{
+        font-size: 1.62rem;
+      }}
+
+      .summary {{
+        display: grid;
+        gap: 4px;
+      }}
+
+      input[type="search"] {{
+        padding: 11px 12px;
+      }}
+
+      tbody tr {{
+        grid-template-columns: 52px minmax(0, 1fr);
+        gap: 5px 10px;
+        padding: 11px;
       }}
     }}
   </style>
@@ -456,8 +593,10 @@ def render_html(entries: list[dict[str, Any]], summary: dict[str, Any]) -> str:
 
 def main() -> None:
     entries, summary = build_entries()
-    OUTPUT.write_text(render_html(entries, summary), encoding="utf-8")
-    print(f"Wrote {OUTPUT.name} with {len(entries)} links.")
+    rendered = render_html(entries, summary)
+    OUTPUT.write_text(rendered, encoding="utf-8")
+    DEPLOY_OUTPUT.write_text(rendered, encoding="utf-8")
+    print(f"Wrote {OUTPUT.name} and {DEPLOY_OUTPUT.name} with {len(entries)} links.")
 
 
 if __name__ == "__main__":
